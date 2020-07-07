@@ -5,7 +5,8 @@ from functools import reduce
 import numpy as np
 import gym
 from gym import error, spaces, utils
-from .minigrid import OBJECT_TO_IDX, COLOR_TO_IDX, STATE_TO_IDX
+from .minigrid import OBJECT_TO_IDX, COLOR_TO_IDX, STATE_TO_IDX, Goal
+
 
 class ReseedWrapper(gym.core.Wrapper):
     """
@@ -28,6 +29,7 @@ class ReseedWrapper(gym.core.Wrapper):
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
         return obs, reward, done, info
+
 
 class ActionBonus(gym.core.Wrapper):
     """
@@ -62,6 +64,7 @@ class ActionBonus(gym.core.Wrapper):
 
     def reset(self, **kwargs):
         return self.env.reset(**kwargs)
+
 
 class StateBonus(gym.core.Wrapper):
     """
@@ -98,6 +101,7 @@ class StateBonus(gym.core.Wrapper):
     def reset(self, **kwargs):
         return self.env.reset(**kwargs)
 
+
 class ImgObsWrapper(gym.core.ObservationWrapper):
     """
     Use the image as the only observation output, no language/mission.
@@ -109,6 +113,7 @@ class ImgObsWrapper(gym.core.ObservationWrapper):
 
     def observation(self, obs):
         return obs['image']
+
 
 class OneHotPartialObsWrapper(gym.core.ObservationWrapper):
     """
@@ -151,6 +156,7 @@ class OneHotPartialObsWrapper(gym.core.ObservationWrapper):
             'mission': obs['mission'],
             'image': out
         }
+
 
 class RGBImgObsWrapper(gym.core.ObservationWrapper):
     """
@@ -218,6 +224,7 @@ class RGBImgPartialObsWrapper(gym.core.ObservationWrapper):
             'image': rgb_img_partial
         }
 
+
 class FullyObsWrapper(gym.core.ObservationWrapper):
     """
     Fully observable gridworld using a compact grid encoding
@@ -246,6 +253,7 @@ class FullyObsWrapper(gym.core.ObservationWrapper):
             'mission': obs['mission'],
             'image': full_grid
         }
+
 
 class FlatObsWrapper(gym.core.ObservationWrapper):
     """
@@ -284,7 +292,7 @@ class FlatObsWrapper(gym.core.ObservationWrapper):
             strArray = np.zeros(shape=(self.maxStrLen, self.numCharCodes), dtype='float32')
 
             for idx, ch in enumerate(mission):
-                if ch >= 'a' and ch <= 'z':
+                if 'a' <= ch <= 'z':
                     chNo = ord(ch) - ord('a')
                 elif ch == ' ':
                     chNo = ord('z') - ord('a') + 1
@@ -297,6 +305,7 @@ class FlatObsWrapper(gym.core.ObservationWrapper):
         obs = np.concatenate((image.flatten(), self.cachedArray.flatten()))
 
         return obs
+
 
 class ViewSizeWrapper(gym.core.Wrapper):
     """
@@ -332,13 +341,14 @@ class ViewSizeWrapper(gym.core.Wrapper):
     def step(self, action):
         return self.env.step(action)
 
-from .minigrid import Goal
+
 class DirectionObsWrapper(gym.core.ObservationWrapper):
     """
     Provides the slope/angular direction to the goal with the observations as modeled by (y2 - y2 )/( x2 - x1)
     type = {slope , angle}
     """
-    def __init__(self, env,type='slope'):
+
+    def __init__(self, env, type='slope'):
         super().__init__(env)
         self.goal_position = None
         self.type = type
@@ -346,12 +356,14 @@ class DirectionObsWrapper(gym.core.ObservationWrapper):
     def reset(self):
         obs = self.env.reset()
         if not self.goal_position:
-            self.goal_position = [x for x,y in enumerate(self.grid.grid) if isinstance(y,(Goal) ) ]
-            if len(self.goal_position) >= 1: # in case there are multiple goals , needs to be handled for other env types
-                self.goal_position = (int(self.goal_position[0]/self.height) , self.goal_position[0]%self.width)
+            self.goal_position = [x for x, y in enumerate(self.grid.grid) if isinstance(y, (Goal))]
+
+            # in case there are multiple goals , needs to be handled for other env types
+            if len(self.goal_position) >= 1:
+                self.goal_position = (int(self.goal_position[0] / self.height), self.goal_position[0] % self.width)
         return obs
 
     def observation(self, obs):
-        slope = np.divide( self.goal_position[1] - self.agent_pos[1] ,  self.goal_position[0] - self.agent_pos[0])
-        obs['goal_direction'] = np.arctan( slope ) if self.type == 'angle' else slope
+        slope = np.divide(self.goal_position[1] - self.agent_pos[1], self.goal_position[0] - self.agent_pos[0])
+        obs['goal_direction'] = np.arctan(slope) if self.type == 'angle' else slope
         return obs
